@@ -57,8 +57,8 @@ variableAssignment: variableReference ASSIGNMENT_OPERATOR expression SEMICOLON;
 variableReference: CAPITAL_IDENT;
 expression: expression MUL expression | expression (PLUS | MIN) expression | literal;
 literal: pixelLiteral | colorLiteral | boolLiteral | percentageLiteral | variableReference | scalarLiteral;
-ifClause: IF BOX_BRACKET_OPEN variableReference BOX_BRACKET_CLOSE OPEN_BRACE statement+ CLOSE_BRACE;
-statement: declaration | ifClause | elseClause;
+ifClause: IF BOX_BRACKET_OPEN variableReference BOX_BRACKET_CLOSE OPEN_BRACE statement+ CLOSE_BRACE elseClause*;
+statement: declaration | ifClause;
 elseClause:ELSE OPEN_BRACE statement CLOSE_BRACE;
 
 boolLiteral: TRUE | FALSE;

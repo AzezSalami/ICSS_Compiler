@@ -7,6 +7,7 @@ import nl.han.ica.icss.ast.operations.MultiplyOperation;
 import nl.han.ica.icss.ast.operations.SubtractOperation;
 import nl.han.ica.icss.ast.types.ExpressionType;
 
+import java.awt.*;
 import java.util.HashMap;
 import java.util.LinkedList;
 
@@ -43,7 +44,30 @@ public class Checker {
     }
 
     private void checkIfClause(IfClause ifClause) {
+        if((checkVariableValue((VariableReference) ifClause.conditionalExpression)) != BOOL){
+            ifClause.setError("conditionalExpression of the ifClause has invalid type");
+        }
+        for(ASTNode statement: ifClause.body){
+            if (statement instanceof Declaration) {
+                checkDeclaration((Declaration) statement);
+            }else if (statement instanceof IfClause) {
+                checkIfClause((IfClause) statement);
+            }
+        }
+        if( ifClause.elseClause != null){
+            checkElseClause(ifClause.elseClause);
+        }
 
+    }
+
+    private void checkElseClause(ElseClause elseClause) {
+        for(ASTNode statement: elseClause.body) {
+            if (statement instanceof Declaration) {
+                checkDeclaration((Declaration) statement);
+            } else if (statement instanceof IfClause) {
+                checkIfClause((IfClause) statement);
+            }
+        }
     }
 
     private void checkDeclaration(Declaration declaration) {
@@ -53,41 +77,43 @@ public class Checker {
         } else {
             switch (declaration.property.name) {
                 case "width":
-                    checkMeasurement(declaration, "width");
-                    break;
                 case "height":
-                    checkMeasurement(declaration, "height");
+                    if (!checkMeasurement(declaration.expression)) {
+                        declaration.expression.setError("Property '" + declaration.property.name + "' has invalid type");
+                    }
                     break;
                 case "color":
-                    checkColor(declaration, "color");
-                    break;
                 case "background-color":
-                    checkColor(declaration, "background-color");
+                    if (!checkColor(declaration.expression)) {
+                        declaration.expression.setError("Property '" + declaration.property.name + "' has invalid type");
+                    }
                     break;
             }
         }
     }
 
-    private void checkColor(Declaration declaration, String text) {
-        if (!(declaration.expression instanceof ColorLiteral)
-                && (checkVariableValue((VariableReference) declaration.expression)) != COLOR) {
-            declaration.setError("Property '" + text + "' has invalid type");
-        }
+    private boolean checkColor(Expression expression) {
+        if (expression instanceof Literal) {
+            return expression instanceof ColorLiteral;
+        } else if (expression instanceof VariableReference) {
+            return (checkVariableValue((VariableReference) expression)) == COLOR;
+        } else return false;
     }
 
-    private void checkMeasurement(Declaration declaration, String text) {
-        if (!(declaration.expression instanceof PixelLiteral)
-                && !(declaration.expression instanceof PercentageLiteral)
-                && (checkVariableValue((VariableReference) declaration.expression)) != PIXEL
-                && (checkVariableValue((VariableReference) declaration.expression)) != PERCENTAGE) {
-            declaration.setError("Property '" + text + "' has invalid type");
-        }
+    private boolean checkMeasurement(Expression expression) {
+        if (expression instanceof Literal) {
+            return expression instanceof PixelLiteral
+                    || expression instanceof PercentageLiteral;
+        } else if (expression instanceof VariableReference) {
+            return (checkVariableValue((VariableReference) expression)) == PIXEL
+                    || (checkVariableValue((VariableReference) expression)) == PERCENTAGE;
+        } else return false;
     }
 
     private ExpressionType checkVariableValue(VariableReference variableReference) {
-        for (HashMap<String, ExpressionType> map : variableTypes) {
-            if (map.containsKey(variableReference.name)) {
-                return map.get(variableReference.name);
+        for (HashMap<String, ExpressionType> hashMap : variableTypes) {
+            if (hashMap.containsKey(variableReference.name)) {
+                return hashMap.get(variableReference.name);
             }
         }
         return null;
@@ -108,7 +134,7 @@ public class Checker {
             hashMap.put(variableAssignment.name.name, BOOL);
             variableTypes.add(hashMap);
         } else if (variableAssignment.expression instanceof ColorLiteral) {
-            hashMap.put(variableAssignment.name.name, BOOL);
+            hashMap.put(variableAssignment.name.name, COLOR);
             variableTypes.add(hashMap);
         } else if (variableAssignment.expression instanceof PercentageLiteral) {
             hashMap.put(variableAssignment.name.name, PERCENTAGE);
@@ -123,7 +149,6 @@ public class Checker {
             hashMap.put(variableAssignment.name.name, UNDEFINED);
             variableTypes.add(hashMap);
         }
-
     }
 
     private void checkOperation(Operation operation) {
@@ -140,17 +165,34 @@ public class Checker {
     }
 
     private void checkMultiplyOperation(MultiplyOperation operation) {
-        if (!(operation.lhs instanceof ScalarLiteral) || !(operation.rhs instanceof ScalarLiteral)) {
-            operation.setError("One Property of an operation has invalid type");
-        } else if (operation.lhs instanceof VariableReference)
+        if (!(operation.lhs instanceof Operation) && !(operation.rhs instanceof Operation)) {
+            if ((operation.lhs instanceof ScalarLiteral)) {
+                if (!checkMeasurement(operation.rhs))
+                    operation.setError("One property of the operation has invalid type");
+            } else if ((operation.rhs instanceof ScalarLiteral)) {
+                if (!checkMeasurement(operation.lhs))
+                    operation.setError("One property of the operation has invalid type");
+            } else {
+                operation.setError("One property of the operation has invalid type");
+            }
+        }
     }
 
     private void checkAddOperation(AddOperation operation) {
+        if (!(operation.lhs instanceof Operation) && !(operation.rhs instanceof Operation)) {
+            if (!checkMeasurement(operation.lhs) || !checkMeasurement(operation.rhs)) {
+                operation.setError("One property of the operation has invalid type");
+            }
+        }
     }
 
     private void checkSubtractOperation(SubtractOperation operation) {
+        if (!(operation.lhs instanceof Operation) && !(operation.rhs instanceof Operation)) {
 
+            if (!checkMeasurement(operation.lhs) || !checkMeasurement(operation.rhs)) {
+                operation.setError("One property of the operation has invalid type");
+            }
+        }
     }
-
 
 }
