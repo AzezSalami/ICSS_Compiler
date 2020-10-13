@@ -46,13 +46,13 @@ ASSIGNMENT_OPERATOR: ':=';
 
 //--- PARSER: ---
 stylesheet: variableAssignment* stylerule* EOF;
-stylerule: selector OPEN_BRACE (declaration | ifClause)*  CLOSE_BRACE;
+stylerule: selector OPEN_BRACE (declaration | ifClause | variableAssignment)*  CLOSE_BRACE;
 selector: tagSelector | classSelector | idSelector;
 tagSelector: LOWER_IDENT;
 classSelector: CLASS_IDENT;
 idSelector: ID_IDENT;
 propertyName: LOWER_IDENT;
-declaration: propertyName COLON expression SEMICOLON;
+declaration: propertyName COLON expression SEMICOLON ;
 variableAssignment: variableReference ASSIGNMENT_OPERATOR expression SEMICOLON;
 variableReference: CAPITAL_IDENT;
 expression: expression MUL expression | expression (PLUS | MIN) expression | literal;

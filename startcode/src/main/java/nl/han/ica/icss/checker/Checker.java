@@ -7,7 +7,6 @@ import nl.han.ica.icss.ast.operations.MultiplyOperation;
 import nl.han.ica.icss.ast.operations.SubtractOperation;
 import nl.han.ica.icss.ast.types.ExpressionType;
 
-import java.awt.*;
 import java.util.HashMap;
 import java.util.LinkedList;
 
@@ -39,9 +38,22 @@ public class Checker {
                 checkDeclaration((Declaration) child);
             } else if (child instanceof IfClause) {
                 checkIfClause((IfClause) child);
+            }else if (child instanceof VariableAssignment){
+                checkVariableAssignment((VariableAssignment) child);
             }
         }
+//        for (ASTNode child : styleRule.getChildren()){
+//            if (child instanceof VariableAssignment){
+//                deleteVariable((VariableAssignment) child);
+//            }
+//        }
     }
+
+//    private void deleteVariable(VariableAssignment variableAssignment) {
+//        for (HashMap<String, ExpressionType> hashMap : variableTypes) {
+//            hashMap.remove(variableAssignment.name.name);
+//        }
+//    }
 
     private void checkIfClause(IfClause ifClause) {
         if((checkVariableValue((VariableReference) ifClause.conditionalExpression)) != BOOL){
