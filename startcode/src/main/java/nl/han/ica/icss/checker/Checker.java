@@ -186,7 +186,6 @@ public class Checker {
             } else if (operation instanceof SubtractOperation) {
                 checkSubtractOperation((SubtractOperation) operation);
             }
-            //TODO : add variableType to the variable
         }
 
     }
