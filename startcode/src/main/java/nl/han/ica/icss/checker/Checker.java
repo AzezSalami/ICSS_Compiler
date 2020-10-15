@@ -23,57 +23,74 @@ public class Checker {
     }
 
     private void checkStylesheet(Stylesheet sheet) {
+        HashMap<String, ExpressionType> hashMap = new HashMap<>();
         for (ASTNode child : sheet.getChildren()) {
             if (child instanceof VariableAssignment) {
-                checkVariableAssignment((VariableAssignment) child);
-            } else {
+                checkVariableAssignment((VariableAssignment) child, hashMap);
+            }
+        }
+        variableTypes.add(hashMap);
+        for (ASTNode child : sheet.getChildren()) {
+            if (child instanceof Stylerule) {
                 checkStyleRule((Stylerule) child);
             }
         }
     }
 
     private void checkStyleRule(Stylerule styleRule) {
+        HashMap<String, ExpressionType> hashMap = new HashMap<>();
+        for (ASTNode child : styleRule.getChildren()) {
+            if (child instanceof VariableAssignment) {
+                checkVariableAssignment((VariableAssignment) child, hashMap);
+            }
+        }
+        variableTypes.add(hashMap);
         for (ASTNode child : styleRule.getChildren()) {
             if (child instanceof Declaration) {
                 checkDeclaration((Declaration) child);
             } else if (child instanceof IfClause) {
                 checkIfClause((IfClause) child);
-            }else if (child instanceof VariableAssignment){
-                checkVariableAssignment((VariableAssignment) child);
+                variableTypes.removeLast();
             }
         }
-//        for (ASTNode child : styleRule.getChildren()){
-//            if (child instanceof VariableAssignment){
-//                deleteVariable((VariableAssignment) child);
-//            }
-//        }
+        variableTypes.removeLast();
     }
 
-//    private void deleteVariable(VariableAssignment variableAssignment) {
-//        for (HashMap<String, ExpressionType> hashMap : variableTypes) {
-//            hashMap.remove(variableAssignment.name.name);
-//        }
-//    }
-
     private void checkIfClause(IfClause ifClause) {
-        if((checkVariableValue((VariableReference) ifClause.conditionalExpression)) != BOOL){
+        HashMap<String, ExpressionType> hashMap = new HashMap<>();
+        if ((checkVariableValue((VariableReference) ifClause.conditionalExpression)) != BOOL) {
             ifClause.setError("conditionalExpression of the ifClause has invalid type");
         }
-        for(ASTNode statement: ifClause.body){
-            if (statement instanceof Declaration) {
-                checkDeclaration((Declaration) statement);
-            }else if (statement instanceof IfClause) {
-                checkIfClause((IfClause) statement);
+        for (ASTNode statement : ifClause.body) {
+            if (statement instanceof VariableAssignment) {
+                checkVariableAssignment((VariableAssignment) statement, hashMap);
             }
         }
-        if( ifClause.elseClause != null){
+        variableTypes.add(hashMap);
+        for (ASTNode statement : ifClause.body) {
+            if (statement instanceof Declaration) {
+                checkDeclaration((Declaration) statement);
+            } else if (statement instanceof IfClause) {
+                checkIfClause((IfClause) statement);
+                variableTypes.removeLast();
+            }
+        }
+        if (ifClause.elseClause != null) {
             checkElseClause(ifClause.elseClause);
+            variableTypes.removeLast();
         }
 
     }
 
     private void checkElseClause(ElseClause elseClause) {
-        for(ASTNode statement: elseClause.body) {
+        HashMap<String, ExpressionType> hashMap = new HashMap<>();
+        for (ASTNode statement : elseClause.body) {
+            if (statement instanceof VariableAssignment) {
+                checkVariableAssignment((VariableAssignment) statement, hashMap);
+            }
+        }
+        variableTypes.add(hashMap);
+        for (ASTNode statement : elseClause.body) {
             if (statement instanceof Declaration) {
                 checkDeclaration((Declaration) statement);
             } else if (statement instanceof IfClause) {
@@ -123,43 +140,40 @@ public class Checker {
     }
 
     private ExpressionType checkVariableValue(VariableReference variableReference) {
-        for (HashMap<String, ExpressionType> hashMap : variableTypes) {
-            if (hashMap.containsKey(variableReference.name)) {
-                return hashMap.get(variableReference.name);
+        ExpressionType type = null;
+        for (int i = variableTypes.size(); i >= 1; i--) {
+            if (variableTypes.get(i - 1).containsKey(variableReference.name)) {
+                type = variableTypes.get(i - 1).get(variableReference.name);
+                break;
             }
         }
-        return null;
+        return type;
     }
 
 
-    private void checkVariableAssignment(VariableAssignment variableAssignment) {
+    private void checkVariableAssignment(VariableAssignment variableAssignment, HashMap<String, ExpressionType> hashMap) {
         if (variableAssignment.expression instanceof Literal) {
-            checkLiteral(variableAssignment);
+            addVariable(variableAssignment, hashMap);
         } else if (variableAssignment.expression instanceof Operation) {
             checkOperation((Operation) variableAssignment.expression);
+            hashMap.put(variableAssignment.name.name, GetExpressionType(variableAssignment.expression));
+            variableTypes.add(hashMap);
         }
     }
 
-    private void checkLiteral(VariableAssignment variableAssignment) {
-        HashMap<String, ExpressionType> hashMap = new HashMap<>();
+    private void addVariable(VariableAssignment variableAssignment, HashMap<String, ExpressionType> hashMap) {
         if (variableAssignment.expression instanceof BoolLiteral) {
             hashMap.put(variableAssignment.name.name, BOOL);
-            variableTypes.add(hashMap);
         } else if (variableAssignment.expression instanceof ColorLiteral) {
             hashMap.put(variableAssignment.name.name, COLOR);
-            variableTypes.add(hashMap);
         } else if (variableAssignment.expression instanceof PercentageLiteral) {
             hashMap.put(variableAssignment.name.name, PERCENTAGE);
-            variableTypes.add(hashMap);
         } else if (variableAssignment.expression instanceof PixelLiteral) {
             hashMap.put(variableAssignment.name.name, PIXEL);
-            variableTypes.add(hashMap);
         } else if (variableAssignment.expression instanceof ScalarLiteral) {
             hashMap.put(variableAssignment.name.name, SCALAR);
-            variableTypes.add(hashMap);
         } else {
             hashMap.put(variableAssignment.name.name, UNDEFINED);
-            variableTypes.add(hashMap);
         }
     }
 
@@ -172,6 +186,7 @@ public class Checker {
             } else if (operation instanceof SubtractOperation) {
                 checkSubtractOperation((SubtractOperation) operation);
             }
+            //TODO : add variableType to the variable
         }
 
     }
@@ -207,4 +222,28 @@ public class Checker {
         }
     }
 
+    private ExpressionType GetExpressionType(Expression expression) {
+        if (expression instanceof Operation) {
+            Operation operation = (Operation) expression;
+            if ((operation.lhs instanceof ScalarLiteral) && (operation.rhs instanceof ScalarLiteral)) return SCALAR;
+            if ((operation.lhs instanceof PixelLiteral) || (operation.rhs instanceof PixelLiteral)) return PIXEL;
+            if ((operation.lhs instanceof PercentageLiteral) || (operation.rhs instanceof PercentageLiteral))
+                return PERCENTAGE;
+        } else {
+            if (expression instanceof BoolLiteral) {
+                return BOOL;
+            } else if (expression instanceof ColorLiteral) {
+                return COLOR;
+            } else if (expression instanceof PercentageLiteral) {
+                return PERCENTAGE;
+            } else if (expression instanceof PixelLiteral) {
+                return PIXEL;
+            } else if (expression instanceof ScalarLiteral) {
+                return SCALAR;
+            } else {
+                return UNDEFINED;
+            }
+        }
+        return null;
+    }
 }
